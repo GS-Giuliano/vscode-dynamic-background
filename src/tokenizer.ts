@@ -14,11 +14,16 @@ const FOREGROUND_OFFSET = 15;
 const MAX_LINE_LENGTH = 20000;
 const LINE_TIME_LIMIT_MS = 50;
 
-export interface ColorSample {
+export interface CategorySample {
   /** Cor de frente ("#rrggbb" ou "#rrggbbaa") → quantidade de caracteres visíveis com essa cor. */
   colors: Map<string, number>;
-  /** Caracteres (não brancos) da categoria escolhida. */
-  symbolChars: number;
+  /** Caracteres (não brancos) da categoria. */
+  chars: number;
+}
+
+export interface ColorSample {
+  /** Amostra de cada categoria encontrada na área visível. */
+  categories: Map<SymbolCategory, CategorySample>;
   /** Total de caracteres (não brancos) visíveis. */
   totalChars: number;
 }
@@ -149,10 +154,10 @@ export class Tokenizer {
   }
 
   /**
-   * Analisa as linhas visíveis do editor e retorna as cores de frente dos tokens da
-   * categoria pedida, ponderadas pela quantidade de caracteres.
+   * Analisa as linhas visíveis do editor e retorna, para cada categoria, as cores de
+   * frente dos seus tokens ponderadas pela quantidade de caracteres.
    */
-  async sample(editor: vscode.TextEditor, category: SymbolCategory): Promise<ColorSample | undefined> {
+  async sample(editor: vscode.TextEditor): Promise<ColorSample | undefined> {
     const document = editor.document;
     const scopeName = this.languageToScope.get(document.languageId);
     if (!this.registry || !scopeName) {
@@ -173,7 +178,7 @@ export class Tokenizer {
     }
 
     const colorMap = this.registry.getColorMap();
-    const result: ColorSample = { colors: new Map(), symbolChars: 0, totalChars: 0 };
+    const result: ColorSample = { categories: new Map(), totalChars: 0 };
     const maxLines = this.maxTokenizeLines();
 
     for (const range of editor.visibleRanges) {
@@ -196,7 +201,8 @@ export class Tokenizer {
 
         let b = 0;
         for (const token of scoped.tokens) {
-          if (classify(token.scopes) !== category) {
+          const category = classify(token.scopes);
+          if (!category) {
             continue;
           }
           const chars = countNonWhitespace(text.slice(token.startIndex, token.endIndex));
@@ -210,8 +216,13 @@ export class Tokenizer {
           const colorId = (binary[b + 1] & FOREGROUND_MASK) >>> FOREGROUND_OFFSET;
           const color = colorMap[colorId];
           if (color) {
-            result.colors.set(color, (result.colors.get(color) ?? 0) + chars);
-            result.symbolChars += chars;
+            let entry = result.categories.get(category);
+            if (!entry) {
+              entry = { colors: new Map(), chars: 0 };
+              result.categories.set(category, entry);
+            }
+            entry.colors.set(color, (entry.colors.get(color) ?? 0) + chars);
+            entry.chars += chars;
           }
         }
       }

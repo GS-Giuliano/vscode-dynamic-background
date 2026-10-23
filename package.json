@@ -2,7 +2,7 @@
   "name": "dynamic-background",
   "displayName": "Dynamic Background",
   "description": "Tints the editor background with the color of the symbols (strings, keywords, variables, types...) visible on screen, so each region of your code gets its own subtle visual identity.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "giusoft",
   "icon": "images/icon.png",
   "license": "MIT",
@@ -54,8 +54,9 @@
         },
         "dynamicBackground.symbol": {
           "type": "string",
-          "default": "string",
+          "default": "auto",
           "enum": [
+            "auto",
             "string",
             "keyword",
             "variable",
@@ -65,6 +66,7 @@
             "comment"
           ],
           "enumDescriptions": [
+            "Most frequent on screen: uses the symbol type with the most characters in the visible area",
             "Strings (text literals)",
             "Keywords / statements (if, return, const, import...)",
             "Variables, parameters and properties",
@@ -73,14 +75,14 @@
             "Numbers and numeric constants",
             "Comments"
           ],
-          "description": "Symbol type whose foreground color is blended into the editor background."
+          "description": "Symbol type whose foreground color is blended into the editor background. 'auto' picks the type that appears most in the visible area."
         },
         "dynamicBackground.intensity": {
           "type": "number",
-          "default": 0.1,
+          "default": 0.2,
           "minimum": 0,
           "maximum": 1,
-          "description": "Maximum weight of the symbol color in the blend. 0.1 = result stays 90% close to the theme's original background."
+          "description": "Maximum weight of the symbol color in the blend. 0.2 = result stays 80% close to the base color (black for dark themes, white for light themes)."
         },
         "dynamicBackground.scaleByDensity": {
           "type": "boolean",
@@ -96,13 +98,13 @@
         },
         "dynamicBackground.debounceMs": {
           "type": "number",
-          "default": 150,
+          "default": 100,
           "minimum": 0,
           "description": "Delay (ms) after scrolling before the color is recalculated."
         },
         "dynamicBackground.maxTokenizeLines": {
           "type": "number",
-          "default": 20000,
+          "default": 5000,
           "minimum": 100,
           "description": "Maximum number of lines tokenized per document (larger files tokenize only the visible area, possibly less accurately)."
         }

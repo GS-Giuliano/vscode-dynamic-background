@@ -10,7 +10,7 @@ type RawThemeSetting = IRawTheme['settings'][number];
 export interface ThemeData {
   /** Id (ou label) do tema, como aparece em `workbench.colorTheme`. */
   name: string;
-  /** Fundo do editor definido pelo tema (ou pelo usuário), antes da mescla. */
+  /** Fundo base da mescla: preto para temas escuros, branco para temas claros (ignora o fundo do tema). */
   background: string;
   /** Tema no formato aceito pelo vscode-textmate. */
   rawTheme: IRawTheme;
@@ -152,11 +152,8 @@ function userTokenRules(themeName: string): RawThemeSetting[] {
   return [...customizationRules(value), ...customizationRules(value[`[${themeName}]`])];
 }
 
-/**
- * Carrega o tema ativo. `userBackground` é o fundo definido pelo próprio usuário em
- * `workbench.colorCustomizations` (se houver), que tem prioridade sobre o do tema.
- */
-export async function loadActiveTheme(userBackground: string | undefined): Promise<ThemeData> {
+/** Carrega o tema ativo. */
+export async function loadActiveTheme(): Promise<ThemeData> {
   const name = activeThemeName();
   const located = findThemeFile(name);
   if (!located) {
@@ -176,14 +173,18 @@ export async function loadActiveTheme(userBackground: string | undefined): Promi
   }
 
   const foreground = colors['editor.foreground'] ?? defaults.foreground;
-  const background = userBackground ?? colors['editor.background'] ?? defaults.background;
+  const light = uiTheme === 'vs' || uiTheme === 'hc-light';
 
   return {
     name,
-    background,
+    background: light ? '#ffffff' : '#000000',
     rawTheme: {
       name,
-      settings: [{ settings: { foreground, background } }, ...tokenColors, ...userTokenRules(name)],
+      settings: [
+        { settings: { foreground, background: colors['editor.background'] ?? defaults.background } },
+        ...tokenColors,
+        ...userTokenRules(name),
+      ],
     },
   };
 }

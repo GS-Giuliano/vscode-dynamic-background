@@ -39,18 +39,6 @@ export class BackgroundWriter {
 
   constructor(private state: vscode.Memento) {}
 
-  /**
-   * Fundo definido pelo próprio usuário para o tema (ignorando o que a extensão escreveu),
-   * ou o `editor.background` geral das customizações.
-   */
-  userBackground(themeName: string): string | undefined {
-    const themeKey = `[${themeName}]`;
-    const record = this.state.get<AppliedRecord>(STATE_KEY);
-    const merged = vscode.workspace.getConfiguration('workbench').get<Customizations>('colorCustomizations') ?? {};
-    const perTheme = record?.themeKey === themeKey ? record.previous : merged[themeKey]?.[COLOR_KEY];
-    return perTheme ?? merged[COLOR_KEY];
-  }
-
   /** Agenda a escrita da cor; `undefined` restaura o valor original. */
   set(themeName: string, color: string | undefined): Promise<void> {
     this.desired = { themeKey: `[${themeName}]`, color };

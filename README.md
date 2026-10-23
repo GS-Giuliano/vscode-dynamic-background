@@ -18,14 +18,17 @@ recognized.
 ## What it does
 
 Dynamic Background is a VS Code extension that tints the editor background with
-the foreground color of one type of symbol (strings, keywords, variables,
-types...) **that is present only in the code currently visible on screen**. The
+the foreground color of the symbols (strings, keywords, variables, types...)
+**present in the code currently visible on screen**. By default it uses the
+symbol type that appears most in the visible area, so the dominant kind of code
+on screen defines the tint. The
 color is recalculated on every scroll, edit or file switch.
 
-By default the tint is proportional to how much of the visible text is made of
-that symbol. With the default settings, the final color is at most
-`theme_background × 90% + symbol_color × 10%`, so it always stays close to the
-original background.
+The base color is pure black for dark themes and pure white for light themes
+(the theme's own editor background is ignored). With the default settings, the
+tint is proportional to how much of the visible text is made of that symbol
+(`scaleByDensity`), reaching at most `base × 80% + symbol_color × 20%`, always
+fully opaque.
 
 ## How it works
 
@@ -34,14 +37,16 @@ original background.
 2. Tokenizes the visible lines with the same TextMate grammars installed in
    VS Code (via `vscode-textmate` + `vscode-oniguruma`). It caches the state of
    previous lines so scrolling stays fast.
-3. Picks the tokens of the configured category and averages their foreground
+3. Picks the tokens of the configured category (or, with `auto`, of the
+   category with the most characters on screen) and averages their foreground
    colors, weighted by character count (e.g. plain strings and regexes with
    different colors contribute proportionally).
-4. Blends that average into the theme background. The blend weight follows the
-   symbol density on screen. The result is written to
+4. Blends that average into the base color (black for dark themes, white for
+   light themes) using `intensity` as the weight, scaled by the symbol density
+   on screen (`scaleByDensity`). The result is written to
    `workbench.colorCustomizations["[Theme Name]"]["editor.background"]` in the
-   user settings. When no symbol of the category is visible, the background
-   returns to the original.
+   user settings. When no symbol of the category is visible, the background is
+   the plain base color.
 
 The original value is restored when the extension (or the feature) is disabled,
 when the theme changes, or when VS Code closes. Other color customizations are
@@ -52,12 +57,12 @@ left untouched.
 | Setting | Default | Description |
 | --- | --- | --- |
 | `dynamicBackground.enabled` | `true` | Turns the feature on or off. |
-| `dynamicBackground.symbol` | `"string"` | `string`, `keyword`, `variable`, `type`, `function`, `number` or `comment`. |
-| `dynamicBackground.intensity` | `0.1` | Maximum weight of the symbol color in the blend (0.1 = 90% of the original background). |
+| `dynamicBackground.symbol` | `"auto"` | `auto` (most frequent on screen), `string`, `keyword`, `variable`, `type`, `function`, `number` or `comment`. |
+| `dynamicBackground.intensity` | `0.2` | Maximum weight of the symbol color in the blend (0.2 = 80% of the black/white base). |
 | `dynamicBackground.scaleByDensity` | `true` | Makes the intensity proportional to the amount of visible symbols. When off, a single visible symbol applies the full intensity. |
 | `dynamicBackground.densitySaturation` | `0.25` | Fraction of the visible text taken by the symbol at which the maximum intensity is reached (e.g. `0.05` for numbers/strings, which tend to be sparse). |
-| `dynamicBackground.debounceMs` | `150` | Delay after scrolling before recalculating. |
-| `dynamicBackground.maxTokenizeLines` | `20000` | Above this, tokenization starts at the visible area (faster, less accurate). |
+| `dynamicBackground.debounceMs` | `100` | Delay after scrolling before recalculating. |
+| `dynamicBackground.maxTokenizeLines` | `5000` | Above this, tokenization starts at the visible area (faster, less accurate). |
 
 ## Commands
 

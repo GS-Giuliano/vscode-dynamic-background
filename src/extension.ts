@@ -4,11 +4,15 @@ import { BackgroundWriter } from './background';
 import { SymbolCategory } from './categories';
 import { composite, mix, parseColor, RGBA, toHex } from './color';
 import { activeThemeName, loadActiveTheme, ThemeData } from './theme';
-import { ColorSample, Tokenizer } from './tokenizer';
+import { CategorySample, ColorSample, Tokenizer } from './tokenizer';
 
 const SECTION = 'dynamicBackground';
 
-const SYMBOL_LABELS: Record<SymbolCategory, string> = {
+/** `auto` usa a categoria com mais caracteres na área visível. */
+type SymbolSetting = SymbolCategory | 'auto';
+
+const SYMBOL_LABELS: Record<SymbolSetting, string> = {
+  auto: 'Mais frequente na tela',
   string: 'Strings',
   keyword: 'Comandos / palavras-chave',
   variable: 'Variáveis',
@@ -25,7 +29,7 @@ function config() {
 }
 
 /** Média das cores de frente, ponderada pela quantidade de caracteres de cada uma. */
-function averageColor(sample: ColorSample, background: RGBA): RGBA | undefined {
+function averageColor(sample: CategorySample, background: RGBA): RGBA | undefined {
   let r = 0;
   let g = 0;
   let b = 0;
@@ -44,9 +48,22 @@ function averageColor(sample: ColorSample, background: RGBA): RGBA | undefined {
   return total ? { r: r / total, g: g / total, b: b / total, a: 1 } : undefined;
 }
 
+/** Categoria com mais caracteres visíveis. */
+function mostFrequent(sample: ColorSample): SymbolCategory | undefined {
+  let best: SymbolCategory | undefined;
+  let bestChars = 0;
+  for (const [category, entry] of sample.categories) {
+    if (entry.chars > bestChars) {
+      best = category;
+      bestChars = entry.chars;
+    }
+  }
+  return best;
+}
+
 class DynamicBackground implements vscode.Disposable {
   private theme: ThemeData | undefined;
-  private tokenizer = new Tokenizer(() => config().get<number>('maxTokenizeLines', 20000));
+  private tokenizer = new Tokenizer(() => config().get<number>('maxTokenizeLines', 5000));
   private timer: NodeJS.Timeout | undefined;
   private generation = 0;
   private initializing: Promise<void> | undefined;
@@ -58,8 +75,7 @@ class DynamicBackground implements vscode.Disposable {
   reload(): Promise<void> {
     const epoch = ++this.reloadEpoch;
     this.initializing = (async () => {
-      const name = activeThemeName();
-      const theme = await loadActiveTheme(this.writer.userBackground(name));
+      const theme = await loadActiveTheme();
       if (epoch !== this.reloadEpoch) {
         return; // Uma recarga mais recente já está em andamento.
       }
@@ -77,7 +93,7 @@ class DynamicBackground implements vscode.Disposable {
     }
   }
 
-  schedule(delay = config().get<number>('debounceMs', 150)): void {
+  schedule(delay = config().get<number>('debounceMs', 100)): void {
     if (this.timer) {
       clearTimeout(this.timer);
     }
@@ -119,11 +135,11 @@ class DynamicBackground implements vscode.Disposable {
       return;
     }
 
-    const background = parseColor(theme.background) ?? { r: 30, g: 30, b: 30, a: 1 };
-    const category = config().get<SymbolCategory>('symbol', 'string');
+    const background = parseColor(theme.background) ?? { r: 0, g: 0, b: 0, a: 1 };
+    const setting = config().get<SymbolSetting>('symbol', 'auto');
     let sample: ColorSample | undefined;
     try {
-      sample = await this.tokenizer.sample(editor, category);
+      sample = await this.tokenizer.sample(editor);
     } catch (err) {
       log.error('falha ao tokenizar:', err);
     }
@@ -131,18 +147,21 @@ class DynamicBackground implements vscode.Disposable {
       return; // Já existe um cálculo mais recente.
     }
 
+    const category = setting === 'auto' ? sample && mostFrequent(sample) : setting;
+    const picked = category && sample?.categories.get(category);
+
     let result = background;
-    const average = sample && averageColor(sample, background);
-    if (sample && average) {
-      const intensity = Math.min(1, Math.max(0, config().get<number>('intensity', 0.1)));
-      const density = sample.totalChars ? sample.symbolChars / sample.totalChars : 0;
+    const average = picked && averageColor(picked, background);
+    if (sample && picked && average) {
+      const intensity = Math.min(1, Math.max(0, config().get<number>('intensity', 0.2)));
+      const density = sample.totalChars ? picked.chars / sample.totalChars : 0;
       const saturation = Math.max(0.01, config().get<number>('densitySaturation', 0.25));
       const factor = config().get<boolean>('scaleByDensity', true) ? Math.min(1, density / saturation) : 1;
       result = mix(background, average, intensity * factor);
     }
     log.debug(
-      `linha ${editor.visibleRanges[0]?.start.line} ${category}: ${sample?.symbolChars ?? 0}/${sample?.totalChars ?? 0} caracteres,`,
-      `cores ${JSON.stringify([...(sample?.colors ?? [])])} → ${toHex(result)}`
+      `linha ${editor.visibleRanges[0]?.start.line} ${setting}→${category ?? '-'}: ${picked?.chars ?? 0}/${sample?.totalChars ?? 0} caracteres,`,
+      `cores ${JSON.stringify([...(picked?.colors ?? [])])} → ${toHex(result)}`
     );
     await this.writer.set(theme.name, toHex(result));
   }
@@ -195,9 +214,9 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.window.setStatusBarMessage(`Dynamic Background ${enabled ? 'desativado' : 'ativado'}`, 3000);
     }),
     vscode.commands.registerCommand(`${SECTION}.selectSymbol`, async () => {
-      const current = config().get<SymbolCategory>('symbol', 'string');
+      const current = config().get<SymbolSetting>('symbol', 'auto');
       const picked = await vscode.window.showQuickPick(
-        (Object.keys(SYMBOL_LABELS) as SymbolCategory[]).map((value) => ({
+        (Object.keys(SYMBOL_LABELS) as SymbolSetting[]).map((value) => ({
           label: SYMBOL_LABELS[value],
           description: value === current ? `${value} (atual)` : value,
           value,
