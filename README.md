@@ -1,5 +1,7 @@
 # Dynamic Background
 
+<img src="images/icon.png" alt="Dynamic Background icon" width="96" align="right">
+
 ## Why
 
 When you work on a large codebase, you rarely remember *where* a piece of code is
@@ -98,4 +100,4 @@ To build the `.vsix` package: `npm run package`.
 
 ## License
 
-Released under the MIT License. See the `LICENSE` file.
+Released under the [MIT License](LICENSE).
