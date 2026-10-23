@@ -1,0 +1,119 @@
+{
+  "name": "dynamic-background",
+  "displayName": "Dynamic Background",
+  "description": "Tints the editor background with the color of the symbols (strings, keywords, variables, types...) visible on screen, so each region of your code gets its own subtle visual identity.",
+  "version": "0.1.0",
+  "publisher": "giusoft",
+  "icon": "images/icon.png",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Themes",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "extensionKind": [
+    "ui",
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "dynamicBackground.toggle",
+        "title": "Dynamic Background: Toggle"
+      },
+      {
+        "command": "dynamicBackground.selectSymbol",
+        "title": "Dynamic Background: Select Symbol Type"
+      },
+      {
+        "command": "dynamicBackground.reload",
+        "title": "Dynamic Background: Reload Theme and Grammars"
+      }
+    ],
+    "configuration": {
+      "title": "Dynamic Background",
+      "properties": {
+        "dynamicBackground.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enables the dynamic editor background."
+        },
+        "dynamicBackground.symbol": {
+          "type": "string",
+          "default": "string",
+          "enum": [
+            "string",
+            "keyword",
+            "variable",
+            "type",
+            "function",
+            "number",
+            "comment"
+          ],
+          "enumDescriptions": [
+            "Strings (text literals)",
+            "Keywords / statements (if, return, const, import...)",
+            "Variables, parameters and properties",
+            "Types, classes, interfaces and enums",
+            "Function and method names",
+            "Numbers and numeric constants",
+            "Comments"
+          ],
+          "description": "Symbol type whose foreground color is blended into the editor background."
+        },
+        "dynamicBackground.intensity": {
+          "type": "number",
+          "default": 0.1,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum weight of the symbol color in the blend. 0.1 = result stays 90% close to the theme's original background."
+        },
+        "dynamicBackground.scaleByDensity": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, the intensity is proportional to the amount of visible symbols (up to 'intensity'). When disabled, a single visible symbol applies the full intensity."
+        },
+        "dynamicBackground.densitySaturation": {
+          "type": "number",
+          "default": 0.25,
+          "minimum": 0.01,
+          "maximum": 1,
+          "description": "With 'scaleByDensity', the fraction of visible text (non-whitespace characters) taken by the symbol at which the maximum intensity is reached. Below it, the intensity scales linearly."
+        },
+        "dynamicBackground.debounceMs": {
+          "type": "number",
+          "default": 150,
+          "minimum": 0,
+          "description": "Delay (ms) after scrolling before the color is recalculated."
+        },
+        "dynamicBackground.maxTokenizeLines": {
+          "type": "number",
+          "default": 20000,
+          "minimum": 100,
+          "description": "Maximum number of lines tokenized per document (larger files tokenize only the visible area, possibly less accurately)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npx @vscode/vsce package"
+  },
+  "dependencies": {
+    "jsonc-parser": "^3.3.1",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.9.0"
+  }
+}
